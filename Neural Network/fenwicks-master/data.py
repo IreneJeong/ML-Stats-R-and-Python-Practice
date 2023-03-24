@@ -8,7 +8,7 @@ from sklearn.model_selection import train_test_split
 
 from . import io
 
-from tensorflow.contrib.tpu.python.tpu import datasets as tpu_datasets
+#from tensorflow.contrib.tpu.python.tpu import datasets as tpu_datasets
 
 
 def float_tffeature(value) -> tf.train.Feature:
@@ -393,7 +393,7 @@ def tfrecord_ds(file_pattern: str, parser, batch_size: int, training: bool = Tru
     :param streaming: under construction.
     :return: a `tf.data` dataset satisfying the above descriptions.
     """
-    if streaming:
+    """if streaming:
         # fixme
         dataset = tpu_datasets.StreamingFilesDataset(file_pattern, filetype='tfrecord', batch_transfer_size=batch_size)
     else:
@@ -413,6 +413,30 @@ def tfrecord_ds(file_pattern: str, parser, batch_size: int, training: bool = Tru
 
     dataset = dataset.apply(mapper_batcher)
     dataset = dataset.prefetch(tf.contrib.data.AUTOTUNE)
+    return dataset"""
+
+    if streaming:
+        dataset = tf.data.Dataset.list_files(file_pattern, shuffle=training)
+        dataset = dataset.interleave(lambda x: tf.data.TFRecordDataset(x, compression_type='GZIP'),
+                                      num_parallel_calls=tf.data.experimental.AUTOTUNE,
+                                      cycle_length=n_cores,
+                                      block_length=batch_size)
+        dataset = dataset.shuffle(shuffle_buf_sz)
+    else:
+        dataset = tf.data.TFRecordDataset.list_files(file_pattern, shuffle=training)
+        dataset = dataset.interleave(lambda x: tf.data.TFRecordDataset(x, compression_type='GZIP'),
+                                      num_parallel_calls=tf.data.experimental.AUTOTUNE,
+                                      cycle_length=n_cores,
+                                      block_length=batch_size,
+                                      deterministic=not training)
+
+    dataset = dataset.map(parser, num_parallel_calls=tf.data.experimental.AUTOTUNE)
+    dataset = dataset.batch(batch_size)
+    dataset = dataset.prefetch(buffer_size=tf.data.experimental.AUTOTUNE)
+
+    if n_folds > 1:
+        dataset = split_dataset(dataset, n_folds, val_fold_idx)
+
     return dataset
 
 
