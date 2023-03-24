@@ -1,0 +1,29 @@
+// Everyone Cut Past Your Report in This Section also write your word count
+
+1)
+
+1.1) Section 1.1 revolves around mistakes, missing values & data cleaning. 
+Pandas & Numpy are imported initially to load all three datasets(two csv & one xlsx file). 
+Info & Head command is used to go through the different values & datatypes of dataframes. 
+Using the above commands we find that Tasks_ID does not match between Tasks & Costs DF, so we convert it into Year-Month_Day format. 
+Next, NA values in all three datasets are calculated which comes out to be zero. However, columns with one constant value exist and are dropped after being stored in a list from the Tasks dataset because of no Statistical use. 
+The column total goes down to 106 from 117. Next, we eliminate tasks that do not have a related cost. No. of tasks go down to 120 as there are costs for 120 tasks only.  (136)
+
+1.2) Max, Min & Mean for the Tasks dataset is calculated using describe function. For, calculating Variance NumPy is used considering the time used(time complexity) to execute the code when compared with calculating it through standard deviation using sapply function to all columns. 
+Variance less than 0.01 is then dropped which reduces the column to 81 from 106. (58)
+
+1.4) The tasks dataset intially contained 84 variable columns. The absolute correlation between variables was obtained using panda's "corr()" and python's built-in "abs()" functions.
+A heatmap was generated via seaborn to visualise this. As only independant variables were required for a good model, the dependant variables needed to be filtered out. Variables with
+more than 0.8 correlation were classified as dependant variables. A loop was created to remove these dependant variables one by one. After filtering, the dataset was left with 27
+independant variables.
+
+
+1.5) Once we have calculated correlations for all pairs of features, we then identify the top 20 suppliers with the lowest cost for each task for Section 1.5. 
+First, we establish the index for better readability using the set_index command. 
+We use this to create a multi-index using the columns ‘Task ID’ and ‘Supplier ID’. 
+We then create another column, ‘Ranking’, within the costs dataset which uses the ‘groupby’ command to calculate the rank of cost for each task ID. 
+The rank() function within python assigns the ranking values in ascending order by default and when the values have the same ranking number, it uses the average rank. 
+Next, we must identify the top 20 suppliers and remove those that never appear in them. After identifying and dropping these, we are left with 63 suppliers (only one supplier doesn’t appear in the top 20 and gets dropped). 
+Lastly, we reset the index of the new datasets to avoid any confusion using the ‘reset_index()’ command. 
+This allows us to reset the index back to the default indexes (0, 1, 2, etc). 
+Using the ‘drop=true’ command in this statement enables the reset_index to delete the index first instead of inserting it back into the column. 
