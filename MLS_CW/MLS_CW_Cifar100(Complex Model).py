@@ -98,37 +98,11 @@ def plot_history(history):
 
     plt.figure()
     
-    
-# Data Augmentation
-from tensorflow.keras.preprocessing.image import ImageDataGenerator
-
-datagen=ImageDataGenerator(rotation_range=40, 
-                           width_shift_range=0.2, 
-                           height_shift_range=0.2, 
-                           zoom_range=0.2, 
-                           horizontal_flip=True, 
-                           fill_mode='nearest')
-
-# rotation_range is a value in degrees (0 - 180) for randomly rotating pictures
-# width_shift and height_shift are ranges for randomly translating pictures vertically or horizontally
-# zoom_range is for randomly zooming pictures 
-# horizontal_flip is for randomly flipping the images horizontally
-# fill_mode fills in new pixels that can appear after a rotation or a shift
-
-# Generate augmented images
-batch_size = 32
-input_X_train_aug = np.zeros_like(input_X_train)
-
-for i, batch in enumerate(datagen.flow(input_X_train, batch_size=batch_size)):
-    input_X_train_aug[i*batch_size:(i+1)*batch_size] = batch
-    if (i+1)*batch_size >= len(input_X_train):
-        break    
-
 
 from keras.layers import BatchNormalization
 # Complex DNN model definition
 model = Sequential()
-KERNEL=5
+KERNEL=3
 # hidden 1 : conv + conv + pool + dropout 
 model.add(Conv2D(32, KERNEL, padding='same', input_shape=(IMAGE_SIZE, IMAGE_SIZE, IMG_CHANNELS)))
 model.add(Activation('relu'))
@@ -159,11 +133,11 @@ model.add(Activation('softmax'))
 
 
 #training constants
-BATCH_SIZE1 = 512
-N_EPOCH1 = 60
+BATCH_SIZE1 = 32
+N_EPOCH1 = 50
 VERBOSE1 = 2
 VALIDATION_SPLIT1 = 0.2
-learning_rate1 = 0.0001
+learning_rate1 = 0.001
 opt = Adam(learning_rate = learning_rate1)
 
 print('Main variables initialised.')
@@ -195,15 +169,199 @@ test_loss,test_acc=model.evaluate(input_X_test, output_y_test, verbose=2)
 print("test accuracy: ",test_acc)
 
 # Result with data augmentation
+# Data Preprocessing 
+from tensorflow.keras.datasets import cifar100
+(input_X_train, output_y_train),(input_X_test, output_y_test)=cifar100.load_data()
+
+print('input_X_train shape: ', input_X_train.shape)
+print(input_X_train.shape[0], 'train samples')
+print(input_X_test.shape[0], 'test samples')
+
+IMG_CHANNELS = 3
+IMAGE_SIZE = input_X_train.shape[1]
+
+print('Image variables initialisation')
+
+N_CLASSES =len(np.unique(output_y_train))
+
+# output data one-hot encoding : Only for small number of classes(CIFAR10 )
+#output_y_train=utils.to_categorical(output_y_train, N_CLASSES)
+#output_y_test=utils.to_categorical(output_y_test, N_CLASSES)
+
+# To normalize the value in between 0 and 1 (there are 255 kinds)
+input_X_train=input_X_train.astype('float32')
+input_X_test=input_X_test.astype('float32')
+
+input_X_train /=255
+input_X_test /=255
+
+from keras.layers import BatchNormalization
+# Complex DNN model definition
+model = Sequential()
+KERNEL=3
+# hidden 1 : conv + conv + pool + dropout 
+model.add(Conv2D(32, KERNEL, padding='same', input_shape=(IMAGE_SIZE, IMAGE_SIZE, IMG_CHANNELS)))
+model.add(Activation('relu'))
+model.add(Conv2D(32,  KERNEL, padding='same'))
+model.add(Activation('relu'))
+model.add(MaxPooling2D(pool_size=(2, 2)))
+model.add(Dropout(0.25))
+model.add(BatchNormalization())
+
+# hidden 2 : conv + conv + pool + dropout 
+model.add(Conv2D(64,  KERNEL, padding='same'))
+model.add(Activation('relu'))
+model.add(Conv2D(64, 3, 3))
+model.add(Activation('relu'))
+model.add(MaxPooling2D(pool_size=(2, 2)))
+model.add(Dropout(0.25))
+model.add(BatchNormalization())
+ 
+# hidden 3 : flatten + droupout 
+model.add(Flatten())
+model.add(Dense(512))
+model.add(Activation('relu'))
+model.add(Dropout(0.5))
+
+# output 
+model.add(Dense(N_CLASSES))
+model.add(Activation('softmax'))
+
+
 model.compile(loss='sparse_categorical_crossentropy', optimizer=opt, metrics=['accuracy'])
 model.summary()
 
-history=model.fit(input_X_train_aug, output_y_train,  batch_size=BATCH_SIZE1, 
-                  epochs=N_EPOCH1, validation_split=VALIDATION_SPLIT1, 
-                    verbose=VERBOSE1,  callbacks=[earlystop_callback])
+
+from tensorflow.keras.preprocessing.image import ImageDataGenerator
+
+batch_size = 32
+data_generator = ImageDataGenerator(width_shift_range=0.1, height_shift_range=0.1, horizontal_flip=True)
+train_generator = data_generator.flow(input_X_train, output_y_train, batch_size)
+steps_per_epoch = input_X_train.shape[0] // batch_size
+
+
+# Train model
+history = model.fit(train_generator, validation_data=(input_X_test, output_y_test), 
+                        steps_per_epoch=steps_per_epoch, 
+                        batch_size=BATCH_SIZE1, 
+                        epochs=N_EPOCH1,  
+                        verbose=VERBOSE1,  callbacks=[earlystop_callback])
 
 
 plot_history(history)
+
+final_accuracy = history.history["val_accuracy"][-5:]
+print("FINAL ACCURACY MEAN-5: ", np.mean(final_accuracy))
+
+test_loss,test_acc=model.evaluate(input_X_test, output_y_test, verbose=2)
+
+print("test accuracy: ",test_acc)
+
+
+#Another Trial !!! 
+
+# Data Preprocessing 
+from tensorflow.keras.datasets import cifar100
+(input_X_train, output_y_train),(input_X_test, output_y_test)=cifar100.load_data()
+
+print('input_X_train shape: ', input_X_train.shape)
+print(input_X_train.shape[0], 'train samples')
+print(input_X_test.shape[0], 'test samples')
+
+IMG_CHANNELS = 3
+IMAGE_SIZE = input_X_train.shape[1]
+
+print('Image variables initialisation')
+
+N_CLASSES =len(np.unique(output_y_train))
+
+# output data one-hot encoding : Only for small number of classes(CIFAR10 )
+#output_y_train=utils.to_categorical(output_y_train, N_CLASSES)
+#output_y_test=utils.to_categorical(output_y_test, N_CLASSES)
+
+# To normalize the value in between 0 and 1 (there are 255 kinds)
+input_X_train=input_X_train.astype('float32')
+input_X_test=input_X_test.astype('float32')
+
+input_X_train /=255
+input_X_test /=255
+
+from keras.layers import BatchNormalization
+# Complex DNN model definition
+model = Sequential()
+KERNEL=3
+# hidden 1 : conv + conv + pool + dropout 
+model.add(Conv2D(32, KERNEL, padding='same', input_shape=(IMAGE_SIZE, IMAGE_SIZE, IMG_CHANNELS)))
+model.add(Activation('relu'))
+model.add(Conv2D(32,  KERNEL, padding='same'))
+model.add(Activation('relu'))
+model.add(MaxPooling2D(pool_size=(2, 2)))
+model.add(Dropout(0.25))
+model.add(BatchNormalization())
+
+# hidden 2 : conv + conv + pool + dropout 
+model.add(Conv2D(64,  KERNEL, padding='same'))
+model.add(Activation('relu'))
+model.add(Conv2D(64, 3, 3))
+model.add(Activation('relu'))
+model.add(MaxPooling2D(pool_size=(2, 2)))
+model.add(Dropout(0.25))
+model.add(BatchNormalization())
+ 
+# hidden 3 : flatten + droupout 
+model.add(Flatten())
+model.add(Dense(512))
+model.add(Activation('relu'))
+model.add(Dropout(0.5))
+
+# output 
+model.add(Dense(N_CLASSES))
+model.add(Activation('softmax'))
+
+
+model.compile(loss='sparse_categorical_crossentropy', optimizer=Adam(learning_rate=0.0001), metrics=['accuracy'])
+model.summary()
+
+
+from tensorflow.keras.preprocessing.image import ImageDataGenerator
+
+batch_size = 32
+data_generator = ImageDataGenerator(width_shift_range=0.1, height_shift_range=0.1, horizontal_flip=True)
+train_generator = data_generator.flow(input_X_train, output_y_train, batch_size)
+steps_per_epoch = input_X_train.shape[0] // batch_size
+
+
+# Train model
+history = model.fit(train_generator, validation_data=(input_X_test, output_y_test), 
+                        steps_per_epoch=steps_per_epoch, 
+                        batch_size=128, 
+                        epochs=N_EPOCH1,  
+                        verbose=VERBOSE1,  callbacks=[earlystop_callback])
+
+
+plot_history(history)
+
+final_accuracy = history.history["val_accuracy"][-5:]
+print("FINAL ACCURACY MEAN-5: ", np.mean(final_accuracy))
+
+test_loss,test_acc=model.evaluate(input_X_test, output_y_test, verbose=2)
+
+print("test accuracy: ",test_acc)
+
+
+# Train model
+history = model.fit(train_generator, validation_data=(input_X_test, output_y_test), 
+                        steps_per_epoch=steps_per_epoch, 
+                        batch_size=256, 
+                        epochs=N_EPOCH1,  
+                        verbose=VERBOSE1,  callbacks=[earlystop_callback])
+
+
+plot_history(history)
+
+final_accuracy = history.history["val_accuracy"][-5:]
+print("FINAL ACCURACY MEAN-5: ", np.mean(final_accuracy))
+
 test_loss,test_acc=model.evaluate(input_X_test, output_y_test, verbose=2)
 
 print("test accuracy: ",test_acc)
